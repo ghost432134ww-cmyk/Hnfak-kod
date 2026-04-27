@@ -3,81 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HNFAK AI - SORUN ÇÖZÜCÜ</title>
+    <title>HNFAK AI - FINAL BOSS</title>
     <style>
-        :root { --bg: #020617; --p: #1e293b; --a: #38bdf8; --t: #f1f5f9; }
-        body, html { margin:0; padding:0; height:100%; font-family:sans-serif; background:var(--bg); color:var(--t); overflow:hidden; }
-        header { height:60px; background:var(--p); display:flex; align-items:center; padding:0 15px; gap:10px; border-bottom:1px solid #334155; }
-        input { flex:1; background:#000; border:1px solid #334155; color:#fff; padding:10px; border-radius:5px; outline:none; }
-        button { background:var(--a); border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; }
-        main { display:flex; height:calc(100vh - 60px); }
-        textarea { flex:1; background:#000; color:var(--a); padding:15px; font-family:monospace; border:none; outline:none; resize:none; }
-        iframe { flex:1; background:#fff; border:none; }
-        @media (max-width:768px) { main { flex-direction:column; } }
+        :root { --bg: #0f172a; --panel: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+        header { height: 65px; background: var(--panel); display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid #334155; }
+        .input-group { flex: 1; display: flex; gap: 8px; }
+        input { flex: 1; background: #020617; border: 1px solid #334155; color: white; padding: 10px; border-radius: 5px; outline: none; }
+        button { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        main { display: flex; height: calc(100vh - 65px); }
+        .box { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #334155; }
+        textarea { flex: 1; background: #020617; color: #38bdf8; padding: 15px; font-family: monospace; border: none; outline: none; resize: none; }
+        iframe { flex: 1; background: white; border: none; }
+        @media (max-width: 768px) { main { flex-direction: column; } }
     </style>
 </head>
 <body>
 
 <header>
-    <b style="color:var(--a)">HNFAK AI</b>
-    <input type="text" id="p" placeholder="Hesap makinesi yap...">
-    <button id="b" onclick="generate()">YAZDIR</button>
+    <b style="color:var(--accent)">HNFAK AI</b>
+    <div class="input-group">
+        <input type="text" id="p" placeholder="Hesap makinesi yap...">
+        <button id="b" onclick="run()">YAZDIR</button>
+    </div>
 </header>
 
 <main>
-    <textarea id="e" placeholder="Kodlar buraya gelecek..."></textarea>
-    <iframe id="v"></iframe>
+    <div class="box"><textarea id="e" spellcheck="false"></textarea></div>
+    <div class="box"><iframe id="v"></iframe></div>
 </main>
 
 <script>
-    const API_KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
+    const KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
     
-    async function generate() {
-        const prompt = document.getElementById('p').value;
-        const btn = document.getElementById('b');
-        const editor = document.getElementById('e');
-        const viewer = document.getElementById('v');
+    // ÇÖZÜM: Model adını 'models/gemini-1.5-flash-latest' olarak tam yol veriyoruz
+    const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${KEY}`;
 
-        if(!prompt) return;
-        btn.disabled = true;
-        btn.innerText = "Sorgulanıyor...";
-        editor.value = "Gemini ile bağlantı kuruluyor...";
+    function clean(t) { 
+        return t.replace(/```html|```javascript|```css|```/gi, '').replace(/```/g, '').trim(); 
+    }
+
+    function update(c) {
+        const d = document.getElementById('v').contentDocument;
+        d.open(); d.write(c); d.close();
+    }
+
+    async function run() {
+        const p = document.getElementById('p').value;
+        const btn = document.getElementById('b');
+        if(!p) return;
+
+        btn.disabled = true; btn.innerText = "Yazıyor...";
+        document.getElementById('e').value = "AI motoru ateşleniyor...";
 
         try {
-            // Model ismini en güncel haline çektik
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+            const r = await fetch(URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt + ". Sadece HTML kodu ver." }] }]
+                    contents: [{ parts: [{ text: p + ". Sadece HTML/CSS/JS kodunu içeren tek bir yapı ver." }] }]
                 })
             });
 
-            const data = await res.json();
+            const data = await r.json();
 
-            if (data.error) {
-                let msg = "HATA: ";
-                if(data.error.status === "PERMISSION_DENIED") msg += "API Anahtarı geçersiz veya kısıtlı!";
-                else if(data.error.status === "RESOURCE_EXHAUSTED") msg += "Kota doldu, biraz bekle.";
-                else msg += data.error.message;
-                editor.value = msg;
-                alert(msg);
-            } else if (data.candidates && data.candidates[0].content) {
-                let code = data.candidates[0].content.parts[0].text;
-                code = code.replace(/```html|```javascript|```css|```/gi, '').trim();
-                editor.value = code;
-                const d = viewer.contentDocument;
-                d.open(); d.write(code); d.close();
+            if (data.candidates && data.candidates[0].content) {
+                const code = clean(data.candidates[0].content.parts[0].text);
+                document.getElementById('e').value = code;
+                update(code);
             } else {
-                editor.value = "Anlaşılamayan bir yanıt geldi.";
+                let errorMsg = data.error ? data.error.message : "Bilinmeyen hata";
+                document.getElementById('e').value = "Hata oluştu: " + errorMsg;
+                alert("Hata: " + errorMsg);
             }
         } catch (err) {
-            editor.value = "Bağlantı koptu: " + err.message;
+            alert("Bağlantı hatası! İnternetini veya API key'i kontrol et.");
         } finally {
-            btn.disabled = false;
-            btn.innerText = "YAZDIR";
+            btn.disabled = false; btn.innerText = "YAZDIR";
         }
     }
+
+    document.getElementById('e').addEventListener('input', (e) => update(e.target.value));
 </script>
 </body>
 </html>
