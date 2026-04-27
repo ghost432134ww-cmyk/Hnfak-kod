@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HNFAK AI - Kesin Çözüm</title>
+    <title>HNFAK AI - KESİN ÇÖZÜM</title>
     <style>
         :root { --bg: #0f172a; --panel: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
         header { height: 65px; background: var(--panel); display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid #334155; }
         .input-group { flex: 1; display: flex; gap: 8px; }
         input { flex: 1; background: #020617; border: 1px solid #334155; color: white; padding: 10px; border-radius: 5px; outline: none; }
-        button { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        button { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; min-width: 100px; }
         main { display: flex; height: calc(100vh - 65px); }
         .box { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #334155; }
-        textarea { flex: 1; background: #020617; color: #38bdf8; padding: 15px; font-family: monospace; border: none; outline: none; resize: none; }
+        .label { background: #334155; padding: 4px 10px; font-size: 10px; font-weight: bold; }
+        textarea { flex: 1; background: #020617; color: #38bdf8; padding: 15px; font-family: monospace; border: none; outline: none; resize: none; font-size: 13px; }
         iframe { flex: 1; background: white; border: none; }
         @media (max-width: 768px) { main { flex-direction: column; } }
     </style>
@@ -23,63 +24,85 @@
 <header>
     <b style="color:var(--accent)">HNFAK AI</b>
     <div class="input-group">
-        <input type="text" id="p" placeholder="Hadi kod yazalım...">
-        <button id="b" onclick="run()">YAZDIR</button>
+        <input type="text" id="p" placeholder="Ne istersin? (Örn: Hesap makinesi yap)">
+        <button id="b" onclick="startGeneration()">YAZDIR</button>
     </div>
 </header>
 
 <main>
-    <div class="box"><textarea id="e" spellcheck="false"></textarea></div>
-    <div class="box"><iframe id="v"></iframe></div>
+    <div class="box"><div class="label">KOD EDİTÖRÜ</div><textarea id="e" spellcheck="false"></textarea></div>
+    <div class="box"><div class="label">CANLI ÖNİZLEME</div><iframe id="v"></iframe></div>
 </main>
 
 <script>
-    const KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
-    // Model adını 'gemini-pro' olarak güncelledik (en stabil olanı)
-    const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${KEY}`;
+    const API_KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
+    
+    // Denenecek model listesi (Sırayla en güçlüden en stabille doğru)
+    const MODELS = [
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-pro"
+    ];
 
-    function clean(t) { return t.replace(/```html|```javascript|```css|```/gi, '').replace(/```/g, '').trim(); }
+    function cleanCode(t) { 
+        return t.replace(/```html|```javascript|```css|```/gi, '').replace(/```/g, '').trim(); 
+    }
 
-    function update(c) {
+    function updatePreview(c) {
         const d = document.getElementById('v').contentDocument;
         d.open(); d.write(c); d.close();
     }
 
-    async function run() {
-        const p = document.getElementById('p').value;
+    async function startGeneration() {
+        const prompt = document.getElementById('p').value;
         const btn = document.getElementById('b');
-        if(!p) return;
+        const editor = document.getElementById('e');
+        
+        if(!prompt) return alert("Bir şeyler yaz kanka!");
 
-        btn.disabled = true; btn.innerText = "...";
+        btn.disabled = true;
+        btn.innerText = "Deneniyor...";
+        editor.value = "AI motorları bağlanıyor, lütfen bekle...";
 
-        try {
-            const r = await fetch(URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: p + " . Kodun tamamını tek bir html yapısında ver, açıklama yapma." }] }]
-                })
-            });
+        let success = false;
 
-            const data = await r.json();
+        // Modelleri sırayla döngüye sokuyoruz
+        for (let modelName of MODELS) {
+            try {
+                console.log(`${modelName} deneniyor...`);
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt + ". Sadece tek bir HTML dosyası ver, açıklama yapma." }] }]
+                    })
+                });
 
-            if (data.candidates && data.candidates[0].content) {
-                const code = clean(data.candidates[0].content.parts[0].text);
-                document.getElementById('e').value = code;
-                update(code);
-            } else {
-                // Eğer gemini-pro da hata verirse otomatik olarak gemini-1.5-flash-latest dene
-                console.log("Alternatif model deneniyor...");
-                alert("Hata: " + (data.error ? data.error.message : "Yanıt alınamadı. Lütfen tekrar dene."));
+                const data = await response.json();
+
+                if (data.candidates && data.candidates[0].content) {
+                    const code = cleanCode(data.candidates[0].content.parts[0].text);
+                    editor.value = code;
+                    updatePreview(code);
+                    success = true;
+                    console.log(`${modelName} başarılı!`);
+                    break; // Başarılıysa döngüden çık
+                }
+            } catch (err) {
+                console.error(`${modelName} hatası:`, err);
             }
-        } catch (err) {
-            alert("Bağlantı hatası!");
-        } finally {
-            btn.disabled = false; btn.innerText = "YAZDIR";
         }
+
+        if (!success) {
+            editor.value = "Maalesef tüm modeller reddetti. API anahtarını veya internetini kontrol et kanka.";
+            alert("Tüm denemeler başarısız oldu.");
+        }
+
+        btn.disabled = false;
+        btn.innerText = "YAZDIR";
     }
 
-    document.getElementById('e').addEventListener('input', (e) => update(e.target.value));
+    document.getElementById('e').addEventListener('input', (e) => updatePreview(e.target.value));
 </script>
 </body>
 </html>
