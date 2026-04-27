@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HNFAK AI - FINAL DESTINY</title>
+    <title>HNFAK AI - KURŞUN GEÇİRMEZ</title>
     <style>
         :root { --bg: #020617; --p: #1e293b; --a: #38bdf8; --t: #f1f5f9; }
         body, html { margin:0; padding:0; height:100%; font-family:sans-serif; background:var(--bg); color:var(--t); overflow:hidden; }
         header { height:60px; background:var(--p); display:flex; align-items:center; padding:0 15px; gap:10px; border-bottom:1px solid #334155; }
         input { flex:1; background:#000; border:1px solid #334155; color:#fff; padding:10px; border-radius:5px; outline:none; }
-        button { background:var(--a); border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; min-width: 120px; }
+        button { background:var(--a); border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; }
         main { display:flex; height:calc(100vh - 60px); }
-        textarea { flex:1; background:#000; color:var(--a); padding:15px; font-family:monospace; border:none; outline:none; resize:none; font-size: 13px; border-right: 1px solid #334155; }
+        textarea { flex:1; background:#000; color:var(--a); padding:15px; font-family:monospace; border:none; outline:none; resize:none; font-size:13px; border-right:1px solid #334155; }
         iframe { flex:1; background:#fff; border:none; }
         @media (max-width:768px) { main { flex-direction:column; } }
     </style>
@@ -20,7 +20,7 @@
 
 <header>
     <b style="color:var(--a)">HNFAK AI</b>
-    <input type="text" id="p" placeholder="Örn: Modern bir hesap makinesi yap">
+    <input type="text" id="p" placeholder="Hesap makinesi yap...">
     <button id="b" onclick="generate()">YAZDIR</button>
 </header>
 
@@ -32,13 +32,11 @@
 <script>
     const API_KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
     
-    // Dünyadaki tüm olası Gemini model varyasyonlarını yazdım amk
+    // ÇÖZÜM: Google 404 vermesin diye modellerin tam sistem adlarını (Full Path) yazdım
     const MODELS = [
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
-        "gemini-pro",
-        "gemini-1.0-pro"
+        "models/gemini-1.5-flash",
+        "models/gemini-1.5-flash-latest",
+        "models/gemini-pro"
     ];
 
     async function generate() {
@@ -47,21 +45,20 @@
         const editor = document.getElementById('e');
         const viewer = document.getElementById('v');
 
-        if(!prompt) return alert("Boş bırakma kanka!");
-        
+        if(!prompt) return;
         btn.disabled = true;
-        editor.value = "Modeller tek tek taranıyor, bu işlem biraz sürebilir...";
+        editor.value = "Sistem taranıyor...";
 
         let success = false;
 
-        for (let model of MODELS) {
-            btn.innerText = "Deneniyor: " + model;
+        for (let modelPath of MODELS) {
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
+                // v1beta endpointine tam model yolunu ekliyoruz
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${API_KEY}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt + ". Sadece tek bir HTML dosyası ver, asla açıklama yapma." }] }]
+                        contents: [{ parts: [{ text: prompt + ". Sadece HTML kodu ver." }] }]
                     })
                 });
 
@@ -69,38 +66,29 @@
 
                 if (data.candidates && data.candidates[0].content) {
                     let code = data.candidates[0].content.parts[0].text;
-                    // Markdown temizle
                     code = code.replace(/```html|```javascript|```css|```/gi, '').trim();
                     editor.value = code;
                     
                     const d = viewer.contentDocument;
                     d.open(); d.write(code); d.close();
-                    
                     success = true;
-                    console.log("Çalışan model bulundu: " + model);
                     break;
-                } else {
-                    console.warn(model + " yanıt vermedi, sıradakine geçiliyor...");
+                } else if (data.error) {
+                    console.log(modelPath + " Hatası: " + data.error.message);
                 }
             } catch (err) {
-                console.error(model + " bağlantı hatası.");
+                console.error("Bağlantı hatası");
             }
         }
 
         if (!success) {
-            editor.value = "HATA: Hiçbir model (Flash, Pro, 8b) yanıt vermedi. \n\n1. API Key'in aktif olduğundan emin ol.\n2. Google Cloud'dan 'Generative Language API' servisini etkinleştirip etkinleştirmediğini kontrol et.";
-            alert("Tüm modeller denendi ama sonuç alınamadı. Konsolu (F12) kontrol et.");
+            editor.value = "HATA: API bağlantısı kuruldu ama model dosyayı vermedi. \n\nİpucu: AI Studio'da API anahtarının 'Generative Language API' için etkin olduğunu ve ödeme/kota sorunu olmadığını kontrol et.";
+            alert("Tüm yollar denendi ama Google 403 veya 404 döndürdü.");
         }
 
         btn.disabled = false;
         btn.innerText = "YAZDIR";
     }
-
-    // Manuel düzenleme desteği
-    document.getElementById('e').addEventListener('input', (i) => {
-        const d = document.getElementById('v').contentDocument;
-        d.open(); d.write(i.target.value); d.close();
-    });
 </script>
 </body>
 </html>
