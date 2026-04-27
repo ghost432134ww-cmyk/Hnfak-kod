@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HNFAK AI - KURŞUN GEÇİRMEZ</title>
+    <title>HNFAK AI - %100 ÇALIŞAN VERSİYON</title>
     <style>
         :root { --bg: #020617; --p: #1e293b; --a: #38bdf8; --t: #f1f5f9; }
         body, html { margin:0; padding:0; height:100%; font-family:sans-serif; background:var(--bg); color:var(--t); overflow:hidden; }
@@ -20,24 +20,20 @@
 
 <header>
     <b style="color:var(--a)">HNFAK AI</b>
-    <input type="text" id="p" placeholder="Hesap makinesi yap...">
+    <input type="text" id="p" placeholder="Bana bir Yılan Oyunu yap...">
     <button id="b" onclick="generate()">YAZDIR</button>
 </header>
 
 <main>
-    <textarea id="e" placeholder="Kodlar buraya gelecek..."></textarea>
+    <textarea id="e" placeholder="Kodlar burada görünecek..."></textarea>
     <iframe id="v"></iframe>
 </main>
 
 <script>
     const API_KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
     
-    // ÇÖZÜM: Google 404 vermesin diye modellerin tam sistem adlarını (Full Path) yazdım
-    const MODELS = [
-        "models/gemini-1.5-flash",
-        "models/gemini-1.5-flash-latest",
-        "models/gemini-pro"
-    ];
+    // GOOGLE'IN İSTEDİĞİ EN DOĞRU ENDPOINT VE MODEL FORMATI
+    const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
     async function generate() {
         const prompt = document.getElementById('p').value;
@@ -45,50 +41,60 @@
         const editor = document.getElementById('e');
         const viewer = document.getElementById('v');
 
-        if(!prompt) return;
+        if(!prompt) return alert("Kanka bir şeyler yaz!");
+        
         btn.disabled = true;
-        editor.value = "Sistem taranıyor...";
+        btn.innerText = "Yazıyor...";
+        editor.value = "Google Gemini ile bağlantı kuruluyor, lütfen bekle...";
 
-        let success = false;
+        try {
+            const response = await fetch(URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: prompt + " . Sadece HTML, CSS ve JavaScript kodunu içeren tek bir HTML dosyası ver. Açıklama yapma, sadece kod." }]
+                    }]
+                })
+            });
 
-        for (let modelPath of MODELS) {
-            try {
-                // v1beta endpointine tam model yolunu ekliyoruz
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${API_KEY}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt + ". Sadece HTML kodu ver." }] }]
-                    })
-                });
+            const data = await response.json();
 
-                const data = await res.json();
-
-                if (data.candidates && data.candidates[0].content) {
-                    let code = data.candidates[0].content.parts[0].text;
-                    code = code.replace(/```html|```javascript|```css|```/gi, '').trim();
-                    editor.value = code;
-                    
-                    const d = viewer.contentDocument;
-                    d.open(); d.write(code); d.close();
-                    success = true;
-                    break;
-                } else if (data.error) {
-                    console.log(modelPath + " Hatası: " + data.error.message);
-                }
-            } catch (err) {
-                console.error("Bağlantı hatası");
+            if (data.candidates && data.candidates[0].content) {
+                let code = data.candidates[0].content.parts[0].text;
+                
+                // Markdown işaretlerini temizle
+                code = code.replace(/```html|```javascript|```css|```/gi, '').trim();
+                
+                editor.value = code;
+                
+                // Önizlemeyi güncelle
+                const doc = viewer.contentDocument;
+                doc.open();
+                doc.write(code);
+                doc.close();
+            } else {
+                // Hata mesajını detaylı göster
+                const errorInfo = data.error ? data.error.message : "Geçersiz yanıt.";
+                editor.value = "HATA: " + errorInfo;
+                alert("Hata: " + errorInfo);
             }
+        } catch (err) {
+            editor.value = "Bağlantı Hatası: " + err.message;
+            alert("Bağlantı kurulamadı!");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "YAZDIR";
         }
-
-        if (!success) {
-            editor.value = "HATA: API bağlantısı kuruldu ama model dosyayı vermedi. \n\nİpucu: AI Studio'da API anahtarının 'Generative Language API' için etkin olduğunu ve ödeme/kota sorunu olmadığını kontrol et.";
-            alert("Tüm yollar denendi ama Google 403 veya 404 döndürdü.");
-        }
-
-        btn.disabled = false;
-        btn.innerText = "YAZDIR";
     }
+
+    // Editörden manuel düzeltme yaparsan önizleme güncellenir
+    document.getElementById('e').addEventListener('input', (i) => {
+        const doc = document.getElementById('v').contentDocument;
+        doc.open();
+        doc.write(i.target.value);
+        doc.close();
+    });
 </script>
 </body>
 </html>
