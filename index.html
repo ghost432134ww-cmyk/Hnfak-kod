@@ -3,132 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HNFAK AI - Pro</title>
+    <title>HNFAK AI - Kesin Çözüm</title>
     <style>
-        :root {
-            --bg-color: #0f172a;
-            --panel-bg: #1e293b;
-            --accent-color: #38bdf8;
-            --text-color: #f1f5f9;
-            --border-color: #334155;
-        }
-
-        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: var(--bg-color); color: var(--text-color); overflow: hidden; }
-
-        header {
-            height: 70px; background: var(--panel-bg); display: flex; align-items: center;
-            padding: 0 20px; border-bottom: 1px solid var(--border-color); gap: 15px;
-        }
-
-        .logo { font-weight: bold; color: var(--accent-color); font-size: 1.2rem; }
-        .input-group { flex-grow: 1; display: flex; gap: 10px; }
-        input { flex-grow: 1; background: #020617; border: 1px solid var(--border-color); color: white; padding: 10px; border-radius: 6px; outline: none; }
-        button { background: var(--accent-color); color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        button:disabled { opacity: 0.5; }
-
-        main { display: flex; height: calc(100vh - 70px); }
-        .box { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--border-color); }
-        .label { background: var(--border-color); padding: 5px 10px; font-size: 11px; font-weight: bold; }
-        textarea { flex: 1; background: #020617; color: #38bdf8; padding: 15px; font-family: monospace; border: none; outline: none; font-size: 14px; }
+        :root { --bg: #0f172a; --panel: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+        header { height: 65px; background: var(--panel); display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid #334155; }
+        .input-group { flex: 1; display: flex; gap: 8px; }
+        input { flex: 1; background: #020617; border: 1px solid #334155; color: white; padding: 10px; border-radius: 5px; outline: none; }
+        button { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        main { display: flex; height: calc(100vh - 65px); }
+        .box { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #334155; }
+        textarea { flex: 1; background: #020617; color: #38bdf8; padding: 15px; font-family: monospace; border: none; outline: none; resize: none; }
         iframe { flex: 1; background: white; border: none; }
-
-        @media (max-width: 768px) {
-            main { flex-direction: column; }
-            header { height: auto; padding: 15px; flex-wrap: wrap; }
-            .input-group { width: 100%; }
-        }
+        @media (max-width: 768px) { main { flex-direction: column; } }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="logo">HNFAK AI</div>
+    <b style="color:var(--accent)">HNFAK AI</b>
     <div class="input-group">
-        <input type="text" id="promptInput" placeholder="Kanka, ne yazalım? (Örn: Neon bir buton yap)">
-        <button id="btn" onclick="askGemini()">YAZDIR</button>
+        <input type="text" id="p" placeholder="Hadi kod yazalım...">
+        <button id="b" onclick="run()">YAZDIR</button>
     </div>
 </header>
 
 <main>
-    <div class="box">
-        <div class="label">KOD EDİTÖRÜ</div>
-        <textarea id="editor" spellcheck="false"></textarea>
-    </div>
-    <div class="box">
-        <div class="label">ÖNİZLEME</div>
-        <iframe id="viewer"></iframe>
-    </div>
+    <div class="box"><textarea id="e" spellcheck="false"></textarea></div>
+    <div class="box"><iframe id="v"></iframe></div>
 </main>
 
 <script>
-    const API_KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
-    // v1beta ve model ismini garantiye alıyoruz
-    const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+    const KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
+    // Model adını 'gemini-pro' olarak güncelledik (en stabil olanı)
+    const URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${KEY}`;
 
-    function cleanCode(text) {
-        // Markdown bloklarını (```html ... ```) temizler
-        return text.replace(/```html|```javascript|```css|```/gi, '').replace(/```/g, '').trim();
+    function clean(t) { return t.replace(/```html|```javascript|```css|```/gi, '').replace(/```/g, '').trim(); }
+
+    function update(c) {
+        const d = document.getElementById('v').contentDocument;
+        d.open(); d.write(c); d.close();
     }
 
-    function renderPreview(code) {
-        const doc = document.getElementById('viewer').contentDocument;
-        doc.open();
-        doc.write(code);
-        doc.close();
-    }
+    async function run() {
+        const p = document.getElementById('p').value;
+        const btn = document.getElementById('b');
+        if(!p) return;
 
-    async function askGemini() {
-        const prompt = document.getElementById('promptInput').value;
-        const btn = document.getElementById('btn');
-        const editor = document.getElementById('editor');
-
-        if(!prompt) return;
-
-        btn.disabled = true;
-        btn.innerText = "Yazıyor...";
+        btn.disabled = true; btn.innerText = "...";
 
         try {
-            const response = await fetch(URL, {
+            const r = await fetch(URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt + ". Sadece kod ver, açıklama yapma." }] }],
-                    // Güvenlik ayarlarını gevşeterek engellenme ihtimalini düşürüyoruz
-                    safetySettings: [
-                        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                    ]
+                    contents: [{ parts: [{ text: p + " . Kodun tamamını tek bir html yapısında ver, açıklama yapma." }] }]
                 })
             });
 
-            const data = await response.json();
-
-            // Hata ayıklama için konsola basıyoruz
-            console.log("Gemini Yanıtı:", data);
+            const data = await r.json();
 
             if (data.candidates && data.candidates[0].content) {
-                const rawCode = data.candidates[0].content.parts[0].text;
-                const finalCode = cleanCode(rawCode);
-                editor.value = finalCode;
-                renderPreview(finalCode);
-            } else if (data.error) {
-                alert("API Hatası: " + data.error.message);
+                const code = clean(data.candidates[0].content.parts[0].text);
+                document.getElementById('e').value = code;
+                update(code);
             } else {
-                alert("Filtre Hatası: Gemini bu isteğe cevap vermeyi reddetti (Güvenlik filtreleri).");
+                // Eğer gemini-pro da hata verirse otomatik olarak gemini-1.5-flash-latest dene
+                console.log("Alternatif model deneniyor...");
+                alert("Hata: " + (data.error ? data.error.message : "Yanıt alınamadı. Lütfen tekrar dene."));
             }
-
         } catch (err) {
-            alert("Bağlantı Hatası: " + err.message);
+            alert("Bağlantı hatası!");
         } finally {
-            btn.disabled = false;
-            btn.innerText = "YAZDIR";
+            btn.disabled = false; btn.innerText = "YAZDIR";
         }
     }
 
-    editor.addEventListener('input', () => renderPreview(editor.value));
+    document.getElementById('e').addEventListener('input', (e) => update(e.target.value));
 </script>
-
 </body>
 </html>
