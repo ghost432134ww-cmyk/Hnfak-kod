@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HNFAK AI - KESİN ÇÖZÜM</title>
+    <style>
+        body { margin: 0; font-family: sans-serif; background: #0a0a0a; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { background: #1a1a1a; padding: 15px; display: flex; gap: 10px; border-bottom: 2px solid #333; align-items: center; }
+        .brand { color: #007acc; font-weight: bold; font-size: 1.4rem; }
+        input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #444; background: #000; color: #0f0; outline: none; }
+        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        button:disabled { background: #444; }
+        main { display: flex; flex: 1; overflow: hidden; }
+        #editor, #preview { flex: 1; display: flex; flex-direction: column; }
+        textarea { width: 100%; height: 100%; background: #1e1e1e; color: #9cdcfe; border: none; padding: 15px; font-family: monospace; resize: none; outline: none; border-right: 1px solid #333; }
+        iframe { width: 100%; height: 100%; background: white; border: none; }
+        .label { background: #252526; padding: 5px 15px; font-size: 11px; color: #888; text-transform: uppercase; }
+        #status-bar { background: #007acc; font-size: 12px; padding: 2px 10px; text-align: right; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">HNFAK</div>
+    <input type="text" id="user-prompt" placeholder="Kanka buraya yaz (Örn: Neon dijital saat)">
+    <button id="run-btn" onclick="askAI()">YAZDIR</button>
+</header>
+
+<main>
+    <div id="editor">
+        <div class="label" id="active-model">EDİTÖR</div>
+        <textarea id="code-output" spellcheck="false"></textarea>
+    </div>
+    <div id="preview">
+        <div class="label">ÖNİZLEME</div>
+        <iframe id="preview-screen"></iframe>
+    </div>
+</main>
+<div id="status-bar">SİSTEM HAZIR</div>
+
+<script>
+    const codeOutput = document.getElementById('code-output');
+    const previewScreen = document.getElementById('preview-screen');
+    const runBtn = document.getElementById('run-btn');
+    const activeModelLabel = document.getElementById('active-model');
+    const statusBar = document.getElementById('status-bar');
+
+    // Senin Ekran Görüntüsündeki API Anahtarın
+    const API_KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
+
+    function updatePreview() {
+        const doc = previewScreen.contentDocument || previewScreen.contentWindow.document;
+        doc.open();
+        doc.write(codeOutput.value);
+        doc.close();
+    }
+
+    async function askAI() {
+        const promptText = document.getElementById('user-prompt').value;
+        if (!promptText) return alert("Kanka boş bırakma!");
+
+        runBtn.disabled = true;
+        runBtn.innerText = "YAZILIYOR...";
+        statusBar.innerText = "AI BAĞLANILIYOR...";
+
+        // Senin hata aldığın tüm modelleri en güncel halleriyle deniyoruz
+        const modelNames = [
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-pro"
+        ];
+
+        let isDone = false;
+
+        for (const m of modelNames) {
+            if (isDone) break;
+            activeModelLabel.innerText = `DENENİYOR: ${m}`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${API_KEY}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Sadece HTML/CSS/JS içeren tek bir dosya kodu döndür. Açıklama yapma. İstek: ${promptText}` }] }]
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates[0].content) {
+                    let fullCode = data.candidates[0].content.parts[0].text;
+                    // Markdown temizle
+                    fullCode = fullCode.replace(/```html|```javascript|```css|```/g, "").trim();
+                    codeOutput.value = fullCode;
+                    updatePreview();
+                    isDone = true;
+                    activeModelLabel.innerText = `AKTİF: ${m}`;
+                    statusBar.innerText = "BAŞARILI!";
+                }
+            } catch (err) {
+                console.error(m + " başarısız.");
+            }
+        }
+
+        if (!isDone) {
+            alert("Kanka bağlantı engellendi! Lütfen bu sayfayı GitHub Pages üzerinden açtığından emin ol.");
+            statusBar.innerText = "BAĞLANTI HATASI";
+        }
+        runBtn.disabled = false;
+        runBtn.innerText = "YAZDIR";
+    }
+
+    codeOutput.value = "";
+    updatePreview();
+</script>
+</body>
+</html>
