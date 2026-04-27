@@ -1,85 +1,105 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HNFAK AI - FINAL BOSS V2</title>
-    <style>
-        :root { --bg: #020617; --p: #1e293b; --a: #38bdf8; --t: #f1f5f9; }
-        body, html { margin:0; padding:0; height:100%; font-family:sans-serif; background:var(--bg); color:var(--t); overflow:hidden; }
-        header { height:60px; background:var(--p); display:flex; align-items:center; padding:0 15px; gap:10px; border-bottom:1px solid #334155; }
-        input { flex:1; background:#000; border:1px solid #334155; color:#fff; padding:10px; border-radius:5px; outline:none; }
-        button { background:var(--a); border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; }
-        main { display:flex; height:calc(100vh - 60px); }
-        textarea { flex:1; background:#000; color:var(--a); padding:15px; font-family:monospace; border:none; outline:none; resize:none; font-size:13px; border-right:1px solid #334155; }
-        iframe { flex:1; background:#fff; border:none; }
-        @media (max-width:768px) { main { flex-direction:column; } }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HNFAK AI</title>
+
+<style>
+:root { --bg:#020617; --p:#1e293b; --a:#38bdf8; --t:#f1f5f9; }
+body,html { margin:0; padding:0; height:100%; font-family:sans-serif; background:var(--bg); color:var(--t); overflow:hidden; }
+header { height:60px; background:var(--p); display:flex; align-items:center; padding:0 15px; gap:10px; border-bottom:1px solid #334155; }
+input { flex:1; background:#000; border:1px solid #334155; color:#fff; padding:10px; border-radius:5px; outline:none; }
+button { background:var(--a); border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; }
+main { display:flex; height:calc(100vh - 60px); }
+textarea { flex:1; background:#000; color:var(--a); padding:15px; font-family:monospace; border:none; outline:none; resize:none; font-size:13px; border-right:1px solid #334155; }
+iframe { flex:1; background:#fff; border:none; }
+@media (max-width:768px) { main { flex-direction:column; } }
+</style>
 </head>
+
 <body>
 
 <header>
-    <b style="color:var(--a)">HNFAK AI</b>
-    <input type="text" id="p" placeholder="Yılan oyunu yap...">
-    <button id="b" onclick="generate()">YAZDIR</button>
+<b style="color:var(--a)">HNFAK AI</b>
+<input type="text" id="p" placeholder="Yılan oyunu yap...">
+<button id="b" onclick="generate()">YAZDIR</button>
 </header>
 
 <main>
-    <textarea id="e" placeholder="Kodlar buraya gelecek..."></textarea>
-    <iframe id="v"></iframe>
+<textarea id="e" placeholder="Kod burada..."></textarea>
+<iframe id="v"></iframe>
 </main>
 
 <script>
-    const API_KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
-    
-    // KESİN ÇÖZÜM: v1beta'da en kararlı endpoint budur.
-    const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + API_KEY;
+const API_KEY = "AIzaSyBgw8n9OtmEWdbsJCDLSaemk-Zqlnh0fRg";
 
-    async function generate() {
-        const prompt = document.getElementById('p').value;
-        const btn = document.getElementById('b');
-        const editor = document.getElementById('e');
-        const viewer = document.getElementById('v');
+const URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
 
-        if(!prompt) return;
-        btn.disabled = true;
-        btn.innerText = "Yükleniyor...";
-        editor.value = "Motorlar çalıştırılıyor...";
+async function generate() {
+    const prompt = document.getElementById('p').value;
+    const btn = document.getElementById('b');
+    const editor = document.getElementById('e');
+    const viewer = document.getElementById('v');
 
-        try {
-            const response = await fetch(ENDPOINT, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: prompt + ". Sadece HTML, CSS ve JS kodunu tek bir dosya olarak ver. Markdown (```) kullanma, sadece kodun kendisini ver." }]
+    if (!prompt) return alert("Bir şey yaz!");
+
+    btn.disabled = true;
+    btn.innerText = "Yazıyor...";
+    editor.value = "AI bağlanıyor...";
+
+    try {
+        const response = await fetch(URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: prompt + " Sadece HTML, CSS ve JS içeren TEK dosya ver. Açıklama yazma."
                     }]
-                })
-            });
+                }]
+            })
+        });
 
-            const data = await response.json();
-
-            if (data.candidates && data.candidates[0].content) {
-                let code = data.candidates[0].content.parts[0].text;
-                
-                // Markdown varsa temizle (AI bazen yine de koyabiliyor)
-                code = code.replace(/```html|```javascript|```css|```/gi, '').trim();
-                
-                editor.value = code;
-                const d = viewer.contentDocument;
-                d.open(); d.write(code); d.close();
-            } else if (data.error) {
-                // Hata mesajını detaylı basıyoruz ki neresi patlıyor görelim
-                editor.value = "Google Hatası: " + data.error.message + "\nKod: " + data.error.status;
-                alert("Hata: " + data.error.message);
-            }
-        } catch (err) {
-            editor.value = "Bağlantı koptu kanka: " + err.message;
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "YAZDIR";
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error.message);
         }
+
+        const data = await response.json();
+
+        let code = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+        // Markdown temizleme
+        code = code.replace(/```[\s\S]*?```/g, (match) => {
+            return match.replace(/```html|```javascript|```css|```/gi, '');
+        }).trim();
+
+        editor.value = code;
+
+        // Önizleme
+        const doc = viewer.contentDocument;
+        doc.open();
+        doc.write(code);
+        doc.close();
+
+    } catch (err) {
+        editor.value = "HATA:\n" + err.message;
+        alert(err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "YAZDIR";
     }
+}
+
+// Canlı önizleme
+document.getElementById('e').addEventListener('input', (e) => {
+    const doc = document.getElementById('v').contentDocument;
+    doc.open();
+    doc.write(e.target.value);
+    doc.close();
+});
 </script>
+
 </body>
 </html>
